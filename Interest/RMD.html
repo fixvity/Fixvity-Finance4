@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RMD Calculator (Required Minimum Distribution)</title>
+
+<style>
+:root{
+  --bg:#f3f6fb;
+  --card:#ffffff;
+  --primary:#2563eb;
+  --success:#16a34a;
+  --danger:#dc2626;
+  --text:#0f172a;
+  --muted:#64748b;
+  --border:#e5e7eb;
+  --radius:18px;
+  --shadow:0 20px 40px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui,Arial;
+  background:var(--bg);
+  color:var(--text);
+}
+.container{
+  max-width:1000px;
+  margin:auto;
+  padding:18px;
+}
+h1{
+  text-align:center;
+  color:var(--primary);
+  margin-bottom:24px;
+}
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:22px;
+}
+label{
+  display:block;
+  margin-top:14px;
+  font-size:14px;
+}
+input,select{
+  width:100%;
+  padding:12px;
+  margin-top:6px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:15px;
+}
+button{
+  width:100%;
+  margin-top:16px;
+  padding:15px;
+  font-size:16px;
+  border:none;
+  border-radius:14px;
+  cursor:pointer;
+}
+.primary{background:var(--primary);color:#fff}
+.secondary{
+  background:#eef2ff;
+  color:var(--primary);
+  border:1px solid #c7d2fe;
+}
+.summary{
+  background:#ecfdf5;
+  border-left:6px solid var(--success);
+  padding:16px;
+  border-radius:14px;
+  margin-top:20px;
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+  margin-top:16px;
+}
+.stat{
+  background:#f8fafc;
+  padding:14px;
+  border-radius:12px;
+  text-align:center;
+}
+.stat .value{
+  font-size:22px;
+  font-weight:700;
+  color:var(--primary);
+}
+.stat .label{
+  font-size:13px;
+  color:var(--muted);
+}
+.note{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:14px;
+}
+@media(max-width:700px){
+  .stats{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>RMD Calculator</h1>
+
+<div class="card">
+
+<label>Your Age</label>
+<input id="age" value="73">
+
+<label>Retirement Account Type</label>
+<select id="type">
+  <option>Traditional IRA</option>
+  <option>401(k)</option>
+</select>
+
+<label>Account Balance (Dec 31 last year) ($)</label>
+<input id="balance" value="500000">
+
+<button class="primary" onclick="calculate()">Calculate RMD</button>
+<button class="secondary" onclick="clearForm()">Clear</button>
+<button class="secondary" onclick="downloadCSV()">Download CSV</button>
+
+<div id="result" class="summary" style="display:none;">
+  <strong>Required Minimum Distribution</strong>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="value" id="rmd">—</div>
+      <div class="label">RMD for This Year</div>
+    </div>
+    <div class="stat">
+      <div class="value" id="remaining">—</div>
+      <div class="label">Remaining Balance (Est.)</div>
+    </div>
+  </div>
+
+  <div class="note">
+    Based on the IRS Uniform Lifetime Table. Roth IRAs do not require RMDs during the original owner's lifetime.
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+/* IRS Uniform Lifetime Table (partial, most-used ages) */
+const RMD_TABLE = {
+  73:26.5, 74:25.5, 75:24.6, 76:23.7, 77:22.9,
+  78:22.0, 79:21.1, 80:20.2, 81:19.4, 82:18.5,
+  83:17.7, 84:16.8, 85:16.0, 86:15.2, 87:14.4,
+  88:13.7, 89:12.9, 90:12.2, 91:11.5, 92:10.8,
+  93:10.1, 94:9.5, 95:8.9
+};
+
+function money(x){
+  return "$"+Number(x).toLocaleString(undefined,{maximumFractionDigits:0});
+}
+
+function calculate(){
+  let a=+age.value;
+  let bal=+balance.value;
+
+  if(a < 73){
+    alert("RMDs generally begin at age 73.");
+    return;
+  }
+  if(!RMD_TABLE[a]){
+    alert("Age outside supported RMD table range.");
+    return;
+  }
+
+  let factor = RMD_TABLE[a];
+  let rmd = bal / factor;
+  let remain = bal - rmd;
+
+  document.getElementById("rmd").innerHTML = money(rmd);
+  document.getElementById("remaining").innerHTML = money(remain);
+  document.getElementById("result").style.display="block";
+}
+
+function clearForm(){
+  document.querySelectorAll("input").forEach(i=>i.value="");
+  document.getElementById("result").style.display="none";
+}
+
+function downloadCSV(){
+  const rows=[
+    ["Field","Value"],
+    ["Age",age.value],
+    ["Account Type",type.value],
+    ["Prior Year Balance",balance.value],
+    ["RMD",document.getElementById("rmd").innerText],
+    ["Remaining Balance",document.getElementById("remaining").innerText]
+  ];
+  let csv=rows.map(r=>r.join(",")).join("\n");
+  let blob=new Blob([csv],{type:"text/csv"});
+  let url=URL.createObjectURL(blob);
+  let a=document.createElement("a");
+  a.href=url;
+  a.download="rmd-calculation.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
